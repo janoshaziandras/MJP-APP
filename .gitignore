@@ -1,0 +1,29 @@
+# .NET fordítási eredmények
+[Dd]ebug/
+[Rr]elease/
+bin/
+obj/
+
+# Visual Studio Code beállítások
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Visual Studio specifikus fájlok
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+
+# OS specifikus (Mac/Windows)
+.DS_Store
+Thumbs.db
+
+# Blazor / Web specifikus
+wwwroot/dist/
+node_modules/
+.env
+.env.*
