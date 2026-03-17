@@ -77,12 +77,12 @@ app.MapPost("/api/stats", async (ApplicationDbContext db, StatRecord stat) => {
     db.StatRecords.Add(stat);
     await db.SaveChangesAsync();
     return Results.Ok();
-});
+}).DisableAntiforgery();
 
 app.MapGet("/api/stats", async (ApplicationDbContext db) => {
     // Top 50 legjobb eredmény lekérése (magasabb pont a jobb)
     return await db.StatRecords.OrderByDescending(s => s.Score).Take(50).ToListAsync();
-});
+}).DisableAntiforgery();
 // ---------------------------------
 
 app.Run();
