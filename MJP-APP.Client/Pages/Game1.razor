@@ -1,0 +1,148 @@
+﻿@page "/game1"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using System.Timers
+@attribute [Authorize]
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<PageTitle>Simon Piano - Memória Játék</PageTitle>
+
+<div class="container text-center mt-5">
+    <div class="text-start mb-3">
+        <button class="btn btn-outline-secondary" @onclick='() => Navigation.NavigateTo("/")'>
+            &larr; Vissza a menübe
+        </button>
+    </div>
+
+    <h2>Simon Piano - Szint: @currentLevel</h2>
+    <p>Jegyezd meg a mintát és ismételd meg!</p>
+
+    <div class="piano-keyboard d-flex justify-content-center my-4">
+        @for (int i = 0; i < 7; i++)
+        {
+            var index = i;
+            <button class="piano-key @(activeKey == index ? "active" : "")" 
+                    @onclick="() => OnUserClick(index)" 
+                    disabled="@isProcessing">
+                @(index + 1)
+            </button>
+        }
+    </div>
+
+    @if (gameOver)
+    {
+        <div class="alert alert-danger">
+            <h4>Játék Vége!</h4>
+            <p>Elért pontszám: @(currentLevel - 1)</p>
+            <button class="btn btn-primary" @onclick="StartGame">Új Játék</button>
+        </div>
+    }
+    else if (!gameStarted)
+    {
+        <button class="btn btn-success btn-lg" @onclick="StartGame">Indítás</button>
+    }
+</div>
+
+<style>
+    .piano-key {
+        width: 60px;
+        height: 200px;
+        background: white;
+        border: 1px solid #ccc;
+        margin: 0 5px;
+        border-radius: 0 0 5px 5px;
+        box-shadow: 0 4px #999;
+        transition: all 0.1s;
+    }
+    .piano-key.active {
+        background: #ffecb3;
+        box-shadow: 0 2px #666;
+        transform: translateY(2px);
+    }
+    .piano-key:disabled {
+        cursor: not-allowed;
+    }
+</style>
+
+@code {
+    private List<int> sequence = new();
+    private int userStep = 0;
+    private int? activeKey = null;
+    private int currentLevel = 1;
+    private bool isProcessing = false;
+    private bool gameStarted = false;
+    private bool gameOver = false;
+
+    private async Task StartGame()
+    {
+        
+        
+        sequence.Clear();
+        currentLevel = 1;
+        gameOver = false;
+        gameStarted = true;
+        await AddStepToSequence();
+    }
+
+    private async Task AddStepToSequence()
+    {
+        isProcessing = true;
+        sequence.Add(new Random().Next(0, 7)); 
+        userStep = 0;
+        await Task.Delay(1000);
+        await PlaySequence();
+        isProcessing = false;
+
+        
+    }
+
+    private async Task PlaySequence()
+    {
+        foreach (var note in sequence)
+        {
+            await HighlightKey(note);
+            await Task.Delay(300); 
+        }
+    }
+
+    private async Task HighlightKey(int index)
+    {
+        activeKey = index;
+        await JS.InvokeVoidAsync("playPianoSound", index);
+        StateHasChanged();
+        await Task.Delay(500);
+        activeKey = null;
+        StateHasChanged();
+    }
+
+    private async Task OnUserClick(int index)
+    {
+        if (isProcessing || gameOver) return;
+
+        await HighlightKey(index);
+
+        if (index == sequence[userStep])
+        {
+            userStep++;
+            if (userStep == sequence.Count)
+            {
+                currentLevel++;
+                await Task.Delay(800);
+                await AddStepToSequence();
+            }
+        }
+        else
+        {
+            await EndGame();
+        }
+    }
+
+    private async Task EndGame()
+    {
+        gameOver = true;
+        gameStarted = false;
+        
+        
+    }
+}

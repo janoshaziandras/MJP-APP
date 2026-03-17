@@ -1,7 +1,81 @@
 ﻿@page "/"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@rendermode InteractiveAuto
+@inject NavigationManager Navigation
 
-<PageTitle>Home</PageTitle>
+<PageTitle>MJP-APP  Főoldal</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="container">
+    
+    <div class="hero-container text-center mb-5 p-4 rounded shadow-sm bg-white border">
+        <img src="images/relax-banner.jpg" class="img-fluid rounded mb-3" alt="MJP-APP" style="max-height: 250px; width: 100%; object-fit: cover;" />
+        <h1 class="fw-bold">MJP-APP</h1>
+        <p class="text-muted">Pihentető applikáció dolgozóknak a 10 perces szünetre.</p>
+    </div>
 
-Welcome to your new app.
+    
+    <div class="row g-4">
+       
+        <div class="col-md-4">
+            <div class="card h-100 tile shadow-sm border-0 text-center" @onclick='() => Navigation.NavigateTo("/game1")'>
+                <div class="card-body py-5">
+                    <div class="icon-circle mb-3 bg-primary text-white mx-auto">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                    </div>
+                    <h5 class="card-title fw-bold">Memóriajáték</h5>
+                    <p class="card-text small text-muted">Vizuális minták megjegyzése és párosítása.</p>
+                </div>
+            </div>
+        </div>
+
+       
+        <div class="col-md-4">
+            <div class="card h-100 tile shadow-sm border-0 text-center" @onclick='() => Navigation.NavigateTo("/relax")'>
+                <div class="card-body py-5">
+                    <div class="icon-circle mb-3 bg-success text-white mx-auto">
+                        <i class="bi bi-wind"></i>
+                    </div>
+                    <h5 class="card-title fw-bold">Relaxáció</h5>
+                    <p class="card-text small text-muted">Légzőgyakorlatok és vizuális indikátorok.</p>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="col-md-4">
+            <div class="card h-100 tile shadow-sm border-0 text-center" @onclick='() => Navigation.NavigateTo("/stats")'>
+                <div class="card-body py-5">
+                    <div class="icon-circle mb-3 bg-info text-white mx-auto">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                    <h5 class="card-title fw-bold">Statisztika</h5>
+                    <p class="card-text small text-muted">Egyéni teljesítmény és eltöltött idő.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .tile {
+        cursor: pointer;
+        transition: transform 0.2s, background-color 0.2s;
+    }
+    .tile:hover {
+        transform: translateY(-5px);
+        background-color: #fcfcfc;
+    }
+    .icon-circle {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    .hero-container img {
+        background-color: #eee; 
+    }
+</style>
