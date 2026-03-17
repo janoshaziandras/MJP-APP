@@ -6,6 +6,7 @@ using MJP_APP.Client.Pages;
 using MJP_APP.Components;
 using MJP_APP.Components.Account;
 using MJP_APP.Data;
+using MJP_APP.Client.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +39,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
     .AddDefaultTokenProviders();
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+builder.Services.AddScoped<HttpClient>(sp => new HttpClient { BaseAddress = new Uri("http://localhost:5086/") });
 
 var app = builder.Build();
 
@@ -69,5 +71,18 @@ app.MapRazorComponents<App>()
 
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
+
+// --- STATISZTIKA API VÉGPONTOK ---
+app.MapPost("/api/stats", async (ApplicationDbContext db, StatRecord stat) => {
+    db.StatRecords.Add(stat);
+    await db.SaveChangesAsync();
+    return Results.Ok();
+});
+
+app.MapGet("/api/stats", async (ApplicationDbContext db) => {
+    // Top 50 legjobb eredmény lekérése (magasabb pont a jobb)
+    return await db.StatRecords.OrderByDescending(s => s.Score).Take(50).ToListAsync();
+});
+// ---------------------------------
 
 app.Run();

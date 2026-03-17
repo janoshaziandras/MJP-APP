@@ -1,0 +1,144 @@
+@page "/memory-match"
+@using Microsoft.AspNetCore.Authorization
+@using MJP_APP.Client.Models
+@using System.Net.Http.Json
+@attribute [Authorize]
+@rendermode InteractiveWebAssembly
+@inject NavigationManager Navigation
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>Kártyapárosító</PageTitle>
+
+<div class="container text-center mt-4">
+    <div class="text-start mb-3">
+        <button class="btn btn-outline-secondary" @onclick='() => Navigation.NavigateTo("/", forceLoad: true)'>&larr; Vissza a menübe</button>
+    </div>
+
+    <h2>Irodai Memória Párosító</h2>
+    <p class="text-muted">Keresd meg a párokat a lehető legkevesebb lépésből!</p>
+    
+    <div class="mb-3">
+        <strong>Lépések: @moves</strong> | <strong>Megtalált párok: @matches / 8</strong>
+    </div>
+
+    @if (matches == 8)
+    {
+        <div class="alert alert-success">Szép munka! @moves lépésből oldottad meg.</div>
+        <button class="btn btn-primary" @onclick="SetupGame">Újra</button>
+    }
+
+    <div class="d-flex justify-content-center">
+        <div class="memory-grid">
+            @foreach (var card in cards)
+            {
+                <div class="memory-card @(card.IsFlipped || card.IsMatched ? "flipped" : "")" @onclick="() => FlipCard(card)">
+                    <div class="memory-card-inner">
+                        <div class="memory-card-front bg-secondary text-white d-flex align-items-center justify-content-center">
+                            <i class="bi bi-question-lg fs-2">?</i>
+                        </div>
+                        <div class="memory-card-back bg-white d-flex align-items-center justify-content-center border">
+                            <span class="fs-1">@card.Symbol</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .memory-grid { display: grid; grid-template-columns: repeat(4, 80px); gap: 10px; }
+    .memory-card { width: 80px; height: 100px; cursor: pointer; perspective: 1000px; }
+    .memory-card-inner { width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; position: relative; }
+    .memory-card.flipped .memory-card-inner { transform: rotateY(180deg); }
+    .memory-card-front, .memory-card-back { width: 100%; height: 100%; position: absolute; backface-visibility: hidden; border-radius: 8px; }
+    .memory-card-back { transform: rotateY(180deg); }
+</style>
+
+@code {
+    private class Card { public int Id { get; set; } public string Symbol { get; set; } = ""; public bool IsFlipped { get; set; } public bool IsMatched { get; set; } }
+    private List<Card> cards = new();
+    private Card? firstCard = null;
+    private int moves = 0;
+    private int matches = 0;
+    private bool isProcessing = false;
+    private DateTime startTime;
+
+    protected override void OnInitialized() => SetupGame();
+
+    private void SetupGame()
+    {
+        startTime = DateTime.Now;
+        var symbols = new List<string> { "☕", "💻", "🖨️", "🎧", "💼", "🖱️", "⏰", "📅" };
+        symbols.AddRange(symbols); // Duplikálás a párokhoz
+        
+        // Keverés
+        var rnd = new Random();
+        cards = symbols.OrderBy(x => rnd.Next()).Select((s, i) => new Card { Id = i, Symbol = s }).ToList();
+        
+        moves = 0; matches = 0; firstCard = null; isProcessing = false;
+    }
+
+    private async Task FlipCard(Card card)
+    {
+        if (isProcessing || card.IsFlipped || card.IsMatched) return;
+
+        card.IsFlipped = true;
+
+        if (firstCard == null)
+        {
+            firstCard = card;
+        }
+        else
+        {
+            moves++;
+            isProcessing = true;
+
+            if (firstCard.Symbol == card.Symbol)
+            {
+                firstCard.IsMatched = true; card.IsMatched = true;
+                matches++;
+                if (matches == 8)
+                {
+                    await SaveStat("Kártyapárosító", 100 - moves);
+                }
+            }
+            else
+            {
+                await Task.Delay(1000);
+                firstCard.IsFlipped = false; card.IsFlipped = false;
+            }
+
+            firstCard = null;
+            isProcessing = false;
+        }
+    }
+
+    private async Task SaveStat(string gameName, int score)
+    {
+        try
+        {
+            // Lekérjük a bejelentkezett felhasználó nevét (emailjét)
+            var authState = await AuthState.GetAuthenticationStateAsync();
+            var userName = authState.User.Identity?.Name ?? "Ismeretlen dolgozó";
+
+            int duration = (int)(DateTime.Now - startTime).TotalSeconds;
+            var newStat = new StatRecord 
+            { 
+                UserName = userName,
+                GameName = gameName, 
+                Score = score, 
+                DurationSeconds = duration,
+                Date = DateTime.Now
+            };
+            
+            // Elküldjük az adatbázisba
+            await Http.PostAsJsonAsync("/api/stats", newStat);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Nem sikerült elmenteni az adatbázisba: {ex.Message}");
+        }
+    }
+}

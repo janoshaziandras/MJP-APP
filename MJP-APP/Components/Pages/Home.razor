@@ -11,7 +11,7 @@
     <div class="hero-container text-center mb-5 p-4 rounded shadow-sm bg-white border">
         <img src="images/relax-banner.jpg" class="img-fluid rounded mb-3" alt="MJP-APP" style="max-height: 250px; width: 100%; object-fit: cover;" />
         <h1 class="fw-bold">MJP-APP</h1>
-        <p class="text-muted">Pihentető applikáció dolgozóknak a 10 perces szünetre.</p>
+        <p class="text-muted">Pihentető applikáció dolgozóknak</p>
     </div>
 
     
@@ -23,8 +23,49 @@
                     <div class="icon-circle mb-3 bg-primary text-white mx-auto">
                         <i class="bi bi-grid-3x3-gap"></i>
                     </div>
-                    <h5 class="card-title fw-bold">Memóriajáték</h5>
-                    <p class="card-text small text-muted">Vizuális minták megjegyzése és párosítása.</p>
+                    <h5 class="card-title fw-bold">Simon Piano</h5>
+                    <p class="card-text small text-muted">Vizuális minták megjegyzése és ismétlése.</p>
+                </div>
+            </div>
+        </div>
+
+       
+        <div class="col-md-4">
+            <div class="card h-100 tile shadow-sm border-0 text-center" @onclick='() => Navigation.NavigateTo("/memory-match")'>
+                <div class="card-body py-5">
+                    <div class="icon-circle mb-3 bg-warning text-white mx-auto">
+                        <i class="bi bi-card-text"></i>
+                    </div>
+                    <h5 class="card-title fw-bold">Kártyapárosító</h5>
+                    <p class="card-text small text-muted">Párok megtalálása a lehető legkevesebb lépésben.</p>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="col-md-4">
+            <div class="card h-100 tile shadow-sm border-0 text-center" @onclick='() => Navigation.NavigateTo("/grid-memory")'>
+                <div class="card-body py-5">
+                    <div class="icon-circle mb-3 bg-danger text-white mx-auto">
+                        <i class="bi bi-bullseye"></i>
+                    </div>
+                    <h5 class="card-title fw-bold">Térbeli Memória</h5>
+                    <p class="card-text small text-muted">Felvillanó mezők megjegyzése és kiválasztása.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-2">
+        
+        <div class="col-md-4">
+            <div class="card h-100 tile shadow-sm border-0 text-center" @onclick='() => Navigation.NavigateTo("/n-back")'>
+                <div class="card-body py-5">
+                    <div class="icon-circle mb-3 bg-secondary text-white mx-auto">
+                        <i class="bi bi-brain"></i>
+                    </div>
+                    <h5 class="card-title fw-bold">2-Back Teszt</h5>
+                    <p class="card-text small text-muted">Betűk emlékezetének tesztelése idővel.</p>
                 </div>
             </div>
         </div>
@@ -36,8 +77,8 @@
                     <div class="icon-circle mb-3 bg-success text-white mx-auto">
                         <i class="bi bi-wind"></i>
                     </div>
-                    <h5 class="card-title fw-bold">Relaxáció</h5>
-                    <p class="card-text small text-muted">Légzőgyakorlatok és vizuális indikátorok.</p>
+                    <h5 class="card-title fw-bold">Légzőgyakorlatok</h5>
+                    <p class="card-text small text-muted">Légzőtechnikák és vizuális indikátorok.</p>
                 </div>
             </div>
         </div>

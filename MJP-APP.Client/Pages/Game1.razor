@@ -2,15 +2,19 @@
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.Authorization
 @using System.Timers
+@using MJP_APP.Client.Models
+@using System.Net.Http.Json
 @attribute [Authorize]
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthState
 
 <PageTitle>Simon Piano - Memória Játék</PageTitle>
 
 <div class="container text-center mt-5">
     <div class="text-start mb-3">
-        <button class="btn btn-outline-secondary" @onclick='() => Navigation.NavigateTo("/")'>
+        <button class="btn btn-outline-secondary" @onclick='() => Navigation.NavigateTo("/", forceLoad: true)'>
             &larr; Vissza a menübe
         </button>
     </div>
@@ -73,10 +77,11 @@
     private bool isProcessing = false;
     private bool gameStarted = false;
     private bool gameOver = false;
+    private DateTime startTime;
 
     private async Task StartGame()
     {
-        
+        startTime = DateTime.Now;
         
         sequence.Clear();
         currentLevel = 1;
@@ -143,6 +148,33 @@
         gameOver = true;
         gameStarted = false;
         
-        
+        await SaveStat("Simon Piano", currentLevel);
+    }
+
+    private async Task SaveStat(string gameName, int score)
+    {
+        try
+        {
+            // Lekérjük a bejelentkezett felhasználó nevét (emailjét)
+            var authState = await AuthState.GetAuthenticationStateAsync();
+            var userName = authState.User.Identity?.Name ?? "Ismeretlen dolgozó";
+
+            int duration = (int)(DateTime.Now - startTime).TotalSeconds;
+            var newStat = new StatRecord 
+            { 
+                UserName = userName,
+                GameName = gameName, 
+                Score = score, 
+                DurationSeconds = duration,
+                Date = DateTime.Now
+            };
+            
+            // Elküldjük az adatbázisba
+            await Http.PostAsJsonAsync("/api/stats", newStat);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Nem sikerült elmenteni az adatbázisba: {ex.Message}");
+        }
     }
 }

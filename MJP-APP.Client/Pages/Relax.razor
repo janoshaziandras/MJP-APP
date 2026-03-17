@@ -1,0 +1,142 @@
+@page "/relax"
+@using System.Threading
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@rendermode InteractiveWebAssembly
+@inject NavigationManager Navigation
+
+<PageTitle>Relaxacio</PageTitle>
+
+<div class="container text-center mt-5">
+    <div class="text-start mb-3">
+        <button class="btn btn-outline-secondary" @onclick='() => Navigation.NavigateTo("/", forceLoad: true)'>
+            &larr; Vissza a menube
+        </button>
+    </div>
+
+    <h2>Relaxacios Modul</h2>
+    
+    <div class="text-start mb-4 p-3 bg-light rounded text-muted small">
+        <strong>Cel:</strong> Idegrendszer megnyugtatasa es fokusz javitasa a 10 perces szunetben.<br/>
+        <strong>Idotartam:</strong> Egy gyakorlatot erdemes 2-5 percig (kb. 5-10 kor) folyatatni a hatekonysag erdekeben.
+    </div>
+
+    <div class="mb-4">
+        <select class="form-select w-75 mx-auto" @bind="selectedExerciseId" disabled="@isRunning">
+            <option value="1">4-7-8 Technika (Mely relaxacio, stresszoldas)</option>
+            <option value="2">Doboz Legzes (4-4-4-4, Koncentracio es nyugalom)</option>
+            <option value="3">Egyenletes Legzes (5-5, Pulzus stabilizalasa)</option>
+        </select>
+    </div>
+
+    <div class="breathing-container my-4 d-flex justify-content-center align-items-center">
+        <div class="breathing-circle @circleClass d-flex justify-content-center align-items-center" style="transition-duration: @(phaseDuration)s;">
+            <h3 class="text-white m-0">@timeLeft s</h3>
+        </div>
+    </div>
+
+    <h3 class="mb-4 text-primary">@currentPhase</h3>
+
+    @if (!isRunning)
+    {
+        <button class="btn btn-success btn-lg" @onclick="StartExercise">Inditas</button>
+    }
+    else
+    {
+        <button class="btn btn-danger btn-lg" @onclick="StopExercise">Leallitas</button>
+    }
+</div>
+
+<style>
+    .breathing-container { height: 250px; }
+    .breathing-circle {
+        width: 100px; height: 100px; background-color: #28a745;
+        border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        transition-property: transform, background-color;
+        transition-timing-function: linear;
+    }
+    .circle-idle { transform: scale(1); background-color: #28a745; }
+    .circle-expand { transform: scale(2.5); background-color: #17a2b8; }
+    .circle-hold { transform: scale(2.5); background-color: #ffc107; }
+    .circle-shrink { transform: scale(1); background-color: #28a745; }
+    .circle-hold-empty { transform: scale(1); background-color: #6c757d; }
+</style>
+
+@code {
+    private int selectedExerciseId = 1;
+    private string currentPhase = "Valassz gyakorlatot es inditsd el";
+    private int timeLeft = 0;
+    private bool isRunning = false;
+    private string circleClass = "circle-idle";
+    private int phaseDuration = 0;
+    private CancellationTokenSource? cts;
+
+    private async Task StartExercise()
+    {
+        if (isRunning) return;
+        isRunning = true;
+        cts = new CancellationTokenSource();
+        
+        try
+        {
+            while (!cts.Token.IsCancellationRequested)
+            {
+                if (selectedExerciseId == 1) await Run478(cts.Token);
+                else if (selectedExerciseId == 2) await RunBox(cts.Token);
+                else await RunEven(cts.Token);
+            }
+        }
+        catch (TaskCanceledException) {}
+        finally { ResetState(); }
+    }
+
+    private async Task Run478(CancellationToken token)
+    {
+        await RunPhase("Belegzes...", 4, "circle-expand", token);
+        await RunPhase("Benn tart...", 7, "circle-hold", token);
+        await RunPhase("Kilegzes...", 8, "circle-shrink", token);
+    }
+
+    private async Task RunBox(CancellationToken token)
+    {
+        await RunPhase("Belegzes...", 4, "circle-expand", token);
+        await RunPhase("Benn tart...", 4, "circle-hold", token);
+        await RunPhase("Kilegzes...", 4, "circle-shrink", token);
+        await RunPhase("Kint tart...", 4, "circle-hold-empty", token);
+    }
+
+    private async Task RunEven(CancellationToken token)
+    {
+        await RunPhase("Belegzes...", 5, "circle-expand", token);
+        await RunPhase("Kilegzes...", 5, "circle-shrink", token);
+    }
+
+    private void StopExercise() => ResetState();
+
+    private async Task RunPhase(string phaseName, int seconds, string cssClass, CancellationToken token)
+    {
+        currentPhase = phaseName;
+        circleClass = cssClass;
+        phaseDuration = seconds;
+        await InvokeAsync(StateHasChanged);
+        
+        for (int i = seconds; i > 0; i--)
+        {
+            token.ThrowIfCancellationRequested();
+            timeLeft = i;
+            StateHasChanged();
+            await Task.Delay(1000, token);
+        }
+    }
+
+    private void ResetState()
+    {
+        cts?.Cancel();
+        isRunning = false;
+        currentPhase = "Gyakorlat leallitva";
+        circleClass = "circle-idle";
+        phaseDuration = 1;
+        timeLeft = 0;
+        StateHasChanged();
+    }
+}

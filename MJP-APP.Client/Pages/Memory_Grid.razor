@@ -1,0 +1,149 @@
+@page "/grid-memory"
+@using Microsoft.AspNetCore.Authorization
+@using MJP_APP.Client.Models
+@using System.Net.Http.Json
+@attribute [Authorize]
+@rendermode InteractiveWebAssembly
+@inject NavigationManager Navigation
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>Térbeli Memória</PageTitle>
+
+<div class="container text-center mt-4">
+    <div class="text-start mb-3">
+        <button class="btn btn-outline-secondary" @onclick='() => Navigation.NavigateTo("/", forceLoad: true)'>&larr; Vissza a menübe</button>
+    </div>
+
+    <h2>Térbeli Rács</h2>
+    <p class="text-muted">Jegyezd meg a felvillanó kék mezőket, majd kattints rájuk!</p>
+
+    <h4>Szint: @level</h4>
+
+    @if (gameState == GameState.GameOver)
+    {
+        <div class="alert alert-danger">Elrontottad! Elért szint: @level</div>
+        <button class="btn btn-primary" @onclick="StartGame">Új játék</button>
+    }
+    else if (gameState == GameState.Idle)
+    {
+        <button class="btn btn-success btn-lg" @onclick="StartGame">Indítás</button>
+    }
+
+    <div class="d-flex justify-content-center mt-4">
+        <div class="grid-container">
+            @for (int i = 0; i < 25; i++)
+            {
+                var index = i;
+                <div class="grid-item @GetCellClass(index)" @onclick="() => OnCellClick(index)"></div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .grid-container { display: grid; grid-template-columns: repeat(5, 60px); gap: 5px; }
+    .grid-item { width: 60px; height: 60px; background-color: #e9ecef; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
+    .grid-item.active { background-color: #0d6efd; }
+    .grid-item.correct { background-color: #198754; }
+    .grid-item.wrong { background-color: #dc3545; }
+    .grid-item.disabled { cursor: not-allowed; }
+</style>
+
+@code {
+    enum GameState { Idle, Showing, Waiting, GameOver }
+    private GameState gameState = GameState.Idle;
+    private int level = 1;
+    private List<int> activeCells = new();
+    private List<int> userClicks = new();
+    private int wrongCell = -1;
+    private DateTime startTime;
+
+    private async Task StartGame()
+    {
+        startTime = DateTime.Now;
+        level = 1;
+        await StartLevel();
+    }
+
+    private async Task StartLevel()
+    {
+        gameState = GameState.Showing;
+        activeCells.Clear();
+        userClicks.Clear();
+        wrongCell = -1;
+        
+        int cellCount = Math.Min(3 + level, 12); // Szintenként nehezedik
+        var rnd = new Random();
+        
+        while (activeCells.Count < cellCount)
+        {
+            int cell = rnd.Next(0, 25);
+            if (!activeCells.Contains(cell)) activeCells.Add(cell);
+        }
+
+        StateHasChanged();
+        await Task.Delay(2000); // 2 másodpercig mutatjuk
+        
+        gameState = GameState.Waiting;
+        StateHasChanged();
+    }
+
+    private async Task OnCellClick(int index)
+    {
+        if (gameState != GameState.Waiting || userClicks.Contains(index)) return;
+
+        userClicks.Add(index);
+
+        if (!activeCells.Contains(index))
+        {
+            wrongCell = index;
+            gameState = GameState.GameOver;
+            await SaveStat("Térbeli Rács", level);
+            return;
+        }
+
+        if (userClicks.Count == activeCells.Count)
+        {
+            level++;
+            await Task.Delay(500);
+            await StartLevel();
+        }
+    }
+
+    private string GetCellClass(int index)
+    {
+        if (gameState == GameState.Showing && activeCells.Contains(index)) return "active disabled";
+        if (gameState == GameState.Waiting && userClicks.Contains(index)) return "correct";
+        if (gameState == GameState.GameOver && index == wrongCell) return "wrong";
+        if (gameState == GameState.GameOver && activeCells.Contains(index)) return "active"; // Megmutatjuk mik lettek volna
+        return gameState == GameState.Showing ? "disabled" : "";
+    }
+
+    private async Task SaveStat(string gameName, int score)
+    {
+        try
+        {
+            // Lekérjük a bejelentkezett felhasználó nevét (emailjét)
+            var authState = await AuthState.GetAuthenticationStateAsync();
+            var userName = authState.User.Identity?.Name ?? "Ismeretlen dolgozó";
+
+            int duration = (int)(DateTime.Now - startTime).TotalSeconds;
+            var newStat = new StatRecord 
+            { 
+                UserName = userName,
+                GameName = gameName, 
+                Score = score, 
+                DurationSeconds = duration,
+                Date = DateTime.Now
+            };
+            
+            // Elküldjük az adatbázisba
+            await Http.PostAsJsonAsync("/api/stats", newStat);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Nem sikerült elmenteni az adatbázisba: {ex.Message}");
+        }
+    }
+}

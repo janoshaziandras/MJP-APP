@@ -1,0 +1,149 @@
+@page "/n-back"
+@using System.Threading
+@using Microsoft.AspNetCore.Authorization
+@using MJP_APP.Client.Models
+@using System.Net.Http.Json
+@attribute [Authorize]
+@rendermode InteractiveWebAssembly
+@inject NavigationManager Navigation
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>2-Back Teszt</PageTitle>
+
+<div class="container text-center mt-4">
+    <div class="text-start mb-3">
+        <button class="btn btn-outline-secondary" @onclick='() => Navigation.NavigateTo("/", forceLoad: true)'>&larr; Vissza a menübe</button>
+    </div>
+
+    <h2>2-Back Memória Teszt</h2>
+    <p class="text-muted">Nyomd meg a gombot, ha a mostani betű megegyezik a <strong>kettővel ezelőttivel</strong>!</p>
+    
+    <div class="d-flex justify-content-center my-4">
+        <div class="nback-screen bg-light border d-flex align-items-center justify-content-center">
+            <h1 class="display-1 fw-bold text-primary">@currentLetter</h1>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <button class="btn btn-warning btn-lg px-5 py-3" @onclick="RegisterMatch" disabled="@(!isRunning)">EGYEZIK!</button>
+    </div>
+
+    <div class="row text-center mb-3">
+        <div class="col"><h4 class="text-success">Helyes: @score</h4></div>
+        <div class="col"><h4 class="text-danger">Hibás: @mistakes</h4></div>
+    </div>
+
+    @if (!isRunning)
+    {
+        <button class="btn btn-success btn-lg" @onclick="StartGame">Indítás</button>
+    }
+    else
+    {
+        <button class="btn btn-danger" @onclick="StopGame">Leállítás</button>
+    }
+</div>
+
+<style>
+    .nback-screen { width: 200px; height: 200px; border-radius: 10px; box-shadow: inset 0 0 10px rgba(0,0,0,0.1); }
+</style>
+
+@code {
+    private string[] letters = { "A", "B", "C", "D", "E" };
+    private List<string> history = new();
+    private string currentLetter = "?";
+    private bool isRunning = false;
+    private int score = 0;
+    private int mistakes = 0;
+    private bool userResponded = false;
+    private CancellationTokenSource? cts;
+    private DateTime startTime;
+
+    private async Task StartGame()
+    {
+        startTime = DateTime.Now;
+        isRunning = true;
+        score = 0;
+        mistakes = 0;
+        history.Clear();
+        cts = new CancellationTokenSource();
+
+        try
+        {
+            var rnd = new Random();
+            while (!cts.Token.IsCancellationRequested)
+            {
+                userResponded = false;
+                
+                // 30% esély, hogy direkt "2-back" találatot generáljunk, hogy legyen mire kattintani
+                if (history.Count >= 2 && rnd.NextDouble() < 0.3) {
+                    currentLetter = history[history.Count - 2];
+                } else {
+                    currentLetter = letters[rnd.Next(letters.Length)];
+                }
+                
+                history.Add(currentLetter);
+                StateHasChanged();
+
+                await Task.Delay(2000, cts.Token); // 2 másodperc gondolkodási idő
+
+                // Ha egyezett volna, de nem kattintott
+                if (!userResponded && history.Count >= 3 && currentLetter == history[history.Count - 3])
+                {
+                    mistakes++;
+                }
+            }
+        }
+        catch (TaskCanceledException) {}
+    }
+
+    private void RegisterMatch()
+    {
+        if (!isRunning || userResponded) return;
+        userResponded = true;
+
+        if (history.Count >= 3 && currentLetter == history[history.Count - 3])
+        {
+            score++;
+        }
+        else
+        {
+            mistakes++;
+        }
+    }
+
+    private async void StopGame()
+    {
+        cts?.Cancel();
+        isRunning = false;
+        currentLetter = "Vége";
+        await SaveStat("2-Back Teszt", score);
+    }
+
+    private async Task SaveStat(string gameName, int score)
+    {
+        try
+        {
+            // Lekérjük a bejelentkezett felhasználó nevét (emailjét)
+            var authState = await AuthState.GetAuthenticationStateAsync();
+            var userName = authState.User.Identity?.Name ?? "Ismeretlen dolgozó";
+
+            int duration = (int)(DateTime.Now - startTime).TotalSeconds;
+            var newStat = new StatRecord 
+            { 
+                UserName = userName,
+                GameName = gameName, 
+                Score = score, 
+                DurationSeconds = duration,
+                Date = DateTime.Now
+            };
+            
+            // Elküldjük az adatbázisba
+            await Http.PostAsJsonAsync("/api/stats", newStat);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Nem sikerült elmenteni az adatbázisba: {ex.Message}");
+        }
+    }
+}
